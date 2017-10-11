@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<style>
+		canvas{
+			border: 1px solid #666;
+		}
+	</style>
+</head>
+<body>
+	<canvas id="canvas" width="440" height="440"></canvas>
+	<canvas id="canvas2" width="100" height="100" ></canvas>
+	<form>
+		<input type="file" id="file" ><button  type="button" onclick="cut()">裁剪</button>
+	</form>
+	<textarea id="output" style="width: 440px;height: 200px;" placeholder="base64"></textarea>
+
+	<script>
+		var canvas = document.getElementById('canvas')
+		var ctx = canvas.getContext('2d')
+		var canvas2 = document.getElementById('canvas2')
+		var ctx2 = canvas2.getContext('2d')
+		var width = canvas.width
+		var height= canvas.height
+		var startX,startY,endX,endY
+		var _top = 0,
+			_left = 0,
+			_tmp_top = 0,
+			_tmp_left = 0
+		var w = 100,
+			h = 100,
+			t = (width - w) / 2,
+			l = (height - h) / 2
+		var g;
+		var img = new Image()
+		
+		document.getElementById('file').onchange = function(e) {
+			var reader = new FileReader(); 
+			var file = e.target.files[0];
+			document.forms[0].reset();
+			reader.onload=function(e) {    
+		        res = e.target.result;  
+		        img.src = res
+		        img.onload = function () {
+					_top = 0
+					_left = 0
+		        	drawImg()
+					canvas.setAttribute('style', 'cursor:move;')	
+		        }
+		    };
+			reader.readAsDataURL(file);  
+		}
+		
+		function drawImg(){
+			ctx.drawImage(img,0,0,width,height)
+			croppedArea()
+		}
+		
+		document.onmousedown = function(event){
+			startX = event.offsetX
+			startY = event.offsetY
+			canvas.onmousemove = function(e) {
+				endX = e.offsetX
+				endY = e.offsetY
+				_tmp_top = endX - startX
+				_tmp_left = endY - startY
+				clear()
+				ctx.drawImage(img,_top+_tmp_top,_left+_tmp_left,width,height)
+				croppedArea()
+			}
+		}
+		document.onmouseup = function(e){
+			_top += _tmp_top
+			_left+= _tmp_left
+			_tmp_top=0;_tmp_left=0
+			canvas.onmousemove = null
+		}
+		function clear(){
+			ctx.clearRect(0, 0, width, height)
+		}
+
+		function croppedArea(){
+			ctx.rect(t, l, w, h) 
+			ctx.stroke()
+		}
+		croppedArea()
+		function cut(){
+			var dataImg = ctx.getImageData(t, l, w, h)
+			ctx2.putImageData(dataImg,0,0,0,0,100,100)
+			g = canvas2.toDataURL("image/png");
+			output.value = g
+		}
+	</script>
+</body>
+</html>
