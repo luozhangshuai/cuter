@@ -3,93 +3,129 @@
 <head>
 	<meta charset="UTF-8">
 	<style>
-		canvas{
-			border: 1px solid #666;
-		}
+		
 	</style>
 </head>
 <body>
-	<canvas id="canvas" width="440" height="440"></canvas>
+	<div style="width: 320px;overflow: hidden;">
+		<canvas id="canvas"></canvas>
+		<form>
+			<input type="file" id="file">
+			<button  type="button" onclick="cut()" style="float: right;">裁 剪</button>
+		</form>
+	</div>
 	<canvas id="canvas2" width="100" height="100" ></canvas>
-	<form>
-		<input type="file" id="file" ><button  type="button" onclick="cut()">裁剪</button>
-	</form>
-	<textarea id="output" style="width: 440px;height: 200px;" placeholder="base64"></textarea>
+	
+	
 
 	<script>
-		var canvas = document.getElementById('canvas')
-		var ctx = canvas.getContext('2d')
-		var canvas2 = document.getElementById('canvas2')
-		var ctx2 = canvas2.getContext('2d')
-		var width = canvas.width
-		var height= canvas.height
+		var canvas = document.getElementById('canvas');
+		var ctx = canvas.getContext('2d');
+		var canvas2 = document.getElementById('canvas2');
+		var ctx2 = canvas2.getContext('2d');
+
+		var width = 320;
+		var height = 480;
+		var cutWidth = 200;
+		var cutHeight = 200;
+		canvas.width = width;
+		canvas.height = height;
+		canvas2.width = cutWidth;
+		canvas2.height = cutHeight;
+		var avatarLeft = (width - cutWidth) / 2;
+		var	avatarTop = (height - cutHeight) / 2;
+		var img = new Image();
 		var startX,startY,endX,endY
 		var _top = 0,
 			_left = 0,
 			_tmp_top = 0,
-			_tmp_left = 0
-		var w = 100,
-			h = 100,
-			t = (width - w) / 2,
-			l = (height - h) / 2
-		var g;
-		var img = new Image()
-		
-		document.getElementById('file').onchange = function(e) {
-			var reader = new FileReader(); 
-			var file = e.target.files[0];
-			document.forms[0].reset();
-			reader.onload=function(e) {    
-		        res = e.target.result;  
-		        img.src = res
-		        img.onload = function () {
-					_top = 0
-					_left = 0
-		        	drawImg()
-					canvas.setAttribute('style', 'cursor:move;')	
-		        }
-		    };
-			reader.readAsDataURL(file);  
+			_tmp_left = 0;
+		// mask
+		function mask(){
+			ctx.beginPath();
+			ctx.rect(0, 0, width, avatarTop);
+			ctx.rect(0, avatarTop + cutHeight, width, avatarTop);
+			ctx.rect(0, avatarTop, avatarLeft, cutHeight);
+			ctx.rect(avatarLeft + cutWidth, avatarTop, avatarLeft, cutHeight);
+			ctx.fillStyle = 'rgba(0, 0, 0, .5)';
+			ctx.closePath();
+			ctx.fill();
+			ctx.beginPath();
+			ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+			ctx.rect(avatarLeft, avatarTop, cutWidth, cutHeight);
+			ctx.closePath();
+			ctx.stroke();
 		}
+		// event
+		function eventListenr(argument) {
+			canvas.onmousewheel = function(event) {
+				clear()
+				var delta = event.wheelDelta > 0 ? true : false;
+				var _width,_height;
+				if(delta){
+					_width = width+=4
+					_height = height+=4
+				}else{
+					_width = width-=4
+					_height = height-=4
+				}
+				ctx.drawImage(img,_top,_left,_width,_height)
+				mask();
+			}
+			canvas.onmousedown = function(event){
+				startX = event.offsetX
+				startY = event.offsetY
+				canvas.onmousemove = function(e) {
+					endX = e.offsetX
+					endY = e.offsetY
+					_tmp_top = endX - startX
+					_tmp_left = endY - startY
+					clear()
+					ctx.drawImage(img,_top+_tmp_top,_left+_tmp_left,width,height)
+					mask();
+				}
+			}
+			document.onmouseup = function(e){
+				_top  += _tmp_top
+				_left += _tmp_left
+				_tmp_top = 0;
+				_tmp_left = 0;
+				canvas.onmousemove = null;
+			}
+			document.getElementById('file').onchange = function(e) {
+				var reader = new FileReader(); 
+				var file = e.target.files[0];
+				document.forms[0].reset();
+				reader.onload=function(e) {    
+			        res = e.target.result;  
+			        img.src = res
+			        img.onload = function () {
+						_top = 0
+						_left = 0
+			        	drawImg()
+						canvas.setAttribute('style', 'cursor:move;')	
+						mask();
+			        }
+			    };
+				reader.readAsDataURL(file);  
+			}
+		}
+		function clear(){
+			ctx.clearRect(0, 0, canvas.width, canvas.height)
+		}
+
+
+
+		mask();
+		eventListenr();
 		
 		function drawImg(){
 			ctx.drawImage(img,0,0,width,height)
-			croppedArea()
 		}
-		
-		document.onmousedown = function(event){
-			startX = event.offsetX
-			startY = event.offsetY
-			canvas.onmousemove = function(e) {
-				endX = e.offsetX
-				endY = e.offsetY
-				_tmp_top = endX - startX
-				_tmp_left = endY - startY
-				clear()
-				ctx.drawImage(img,_top+_tmp_top,_left+_tmp_left,width,height)
-				croppedArea()
-			}
-		}
-		document.onmouseup = function(e){
-			_top += _tmp_top
-			_left+= _tmp_left
-			_tmp_top=0;_tmp_left=0
-			canvas.onmousemove = null
-		}
-		function clear(){
-			ctx.clearRect(0, 0, width, height)
-		}
-
-		function croppedArea(){
-			ctx.rect(t, l, w, h) 
-			ctx.stroke()
-		}
-		croppedArea()
 		function cut(){
-			var dataImg = ctx.getImageData(t, l, w, h)
-			ctx2.putImageData(dataImg,0,0,0,0,100,100)
+			var dataImg = ctx.getImageData(avatarLeft, avatarTop, cutWidth, cutHeight)
+			ctx2.putImageData(dataImg,0,0)
 			g = canvas2.toDataURL("image/png");
-			output.value = g
 		}
 	</script>
 </body>
